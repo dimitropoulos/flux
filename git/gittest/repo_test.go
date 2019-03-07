@@ -133,18 +133,18 @@ func TestSignedTag(t *testing.T) {
 	os.Setenv("GNUPGHOME", gpgHome)
 	defer os.Unsetenv("GNUPGHOME")
 
-	checkout, _, cleanup := CheckoutWithConfig(t, config)
+	working, _, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer"}
-	if err := checkout.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+	if err := working.UpdateSyncMarker(ctx, tagAction); err != nil {
 		t.Fatal(err)
 	}
 
-	err := checkout.VerifySyncTag(ctx)
+	err := working.VerifySyncMarker(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,14 +162,14 @@ func TestCheckout(t *testing.T) {
 
 	ctx := context.Background()
 
-	params := git.Config{
-		Branch:    "master",
-		UserName:  "example",
-		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
-		NotesRef:  "fluxtest",
+	gitConfig := git.Config{
+		Branch:         "master",
+		UserName:       "example",
+		UserEmail:      "example@example.com",
+		SyncMarkerName: "flux-test",
+		NotesRef:       "fluxtest",
 	}
-	checkout, err := repo.Clone(ctx, params)
+	checkout, err := repo.Clone(ctx, gitConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestCheckout(t *testing.T) {
 		t.Error(err)
 	}
 
-	another, err := repo.Clone(ctx, params)
+	another, err := repo.Clone(ctx, gitConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

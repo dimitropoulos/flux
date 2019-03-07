@@ -2,27 +2,23 @@ package git
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
-)
-
-var (
-	ErrReadOnly = errors.New("cannot make a working clone of a read-only git repo")
 )
 
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch      string   // branch we're syncing to
-	Paths       []string // paths within the repo containing files we care about
-	SyncTag     string
-	NotesRef    string
-	UserName    string
-	UserEmail   string
-	SigningKey  string
-	SetAuthor   bool
-	SkipMessage string
+	Branch         string   // branch we're syncing to
+	Paths          []string // paths within the repo containing files we care about
+	ReadOnly       bool     // Flux can read but not write to the git repo
+	SyncMarkerName string
+	NotesRef       string
+	UserName       string
+	UserEmail      string
+	SigningKey     string
+	SetAuthor      bool
+	SkipMessage    string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -35,6 +31,7 @@ type Checkout struct {
 	realNotesRef string // cache the notes ref, since we use it to push as well
 }
 
+// Commit refers to a git commit
 type Commit struct {
 	SigningKey string
 	Revision   string
@@ -48,53 +45,11 @@ type CommitAction struct {
 	SigningKey string
 }
 
-// TagAction - struct holding tag information
-type TagAction struct {
+// SyncMarkerAction - struct holding tag information
+type SyncMarkerAction struct {
 	Revision   string
 	Message    string
 	SigningKey string
-}
-
-// Clone returns a local working clone of the sync'ed `*Repo`, using
-// the config given.
-func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
-	if r.readonly {
-		return nil, ErrReadOnly
-	}
-
-	upstream := r.Origin()
-	repoDir, err := r.workingClone(ctx, conf.Branch)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := config(ctx, repoDir, conf.UserName, conf.UserEmail); err != nil {
-		os.RemoveAll(repoDir)
-		return nil, err
-	}
-
-	// We'll need the notes ref for pushing it, so make sure we have
-	// it. This assumes we're syncing it (otherwise we'll likely get conflicts)
-	realNotesRef, err := getNotesRef(ctx, repoDir, conf.NotesRef)
-	if err != nil {
-		os.RemoveAll(repoDir)
-		return nil, err
-	}
-
-	r.mu.RLock()
-	if err := fetch(ctx, repoDir, r.dir, realNotesRef+":"+realNotesRef); err != nil {
-		os.RemoveAll(repoDir)
-		r.mu.RUnlock()
-		return nil, err
-	}
-	r.mu.RUnlock()
-
-	return &Checkout{
-		dir:          repoDir,
-		upstream:     upstream,
-		realNotesRef: realNotesRef,
-		config:       conf,
-	}, nil
 }
 
 // Clean a Checkout up (remove the clone)
@@ -141,7 +96,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	}
 
 	if note != nil {
-		rev, err := refRevision(ctx, c.dir, "HEAD")
+		rev, err := c.HeadRevision(ctx)
 		if err != nil {
 			return err
 		}
@@ -169,23 +124,34 @@ func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (b
 	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
 }
 
+// HeadRevision returns the revision of the current git HEAD
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.dir, "HEAD")
 }
 
-func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, c.config.SyncTag)
-}
-
-func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
-	if tagAction.SigningKey == "" {
-		tagAction.SigningKey = c.config.SigningKey
+// SyncMarkerRevision returns the revision of the SyncMarker
+func (c *Checkout) SyncMarkerRevision(ctx context.Context) (string, error) {
+	if c.config.ReadOnly {
+		return getConfigMapSyncMarkerRevision(ctx)
 	}
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
+
+	return refRevision(ctx, c.dir, c.config.SyncMarkerName)
 }
 
+// UpdateSyncMarker updates the state that Flux relies on for keeping track of the so-called "High Water Mark" for which commits Flux has reconciled.
+func (c *Checkout) UpdateSyncMarker(ctx context.Context, syncMarkerAction SyncMarkerAction) error {
+	if syncMarkerAction.SigningKey == "" {
+		syncMarkerAction.SigningKey = c.config.SigningKey
+	}
+	if c.config.ReadOnly {
+		return updateConfigMapState(ctx, c.config.SyncMarkerName, syncMarkerAction)
+	}
+	return moveTagAndPush(ctx, c.dir, c.config.SyncMarkerName, c.upstream.URL, syncMarkerAction)
+}
+
+// VerifySyncTag validates the gpg signature created by git tag.
 func (c *Checkout) VerifySyncTag(ctx context.Context) error {
-	return verifyTag(ctx, c.dir, c.config.SyncTag)
+	return verifyTag(ctx, c.dir, c.config.SyncMarkerName)
 }
 
 // ChangedFiles does a git diff listing changed files

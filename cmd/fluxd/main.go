@@ -55,7 +55,7 @@ const (
 
 	// There are running systems that assume these defaults (by not
 	// supplying a value for one or both). Don't change them.
-	defaultGitSyncTag     = "flux-sync"
+	defaultSyncMarkerName = "flux-sync"
 	defaultGitNotesRef    = "flux"
 	defaultGitSkipMessage = "\n\n[ci skip]"
 )
@@ -85,12 +85,13 @@ func main() {
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
+		gitReadonly  = fs.Bool("git-readonly", false, "use to prevnent Flux from pushing changes to git")
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
-		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --sync-marker-name and --git-notes-ref") // READONLY-NOTE: figure out what to do with this
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
-		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
+		syncMarkerName = fs.String("sync-marker-name", defaultSyncMarkerName, "tag to use to mark sync progress for this cluster")
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
 		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
@@ -123,10 +124,14 @@ func main() {
 		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
 
+		// k8s-configmap backed Flux state
+		k8sConfigMapName = fs.String("k8s-configmap-name", "flux-state", "name of the k8s ConfigMap used by Flux to hold application state")
+		fluxStateMode    = fs.String("flux-state-mode", daemon.GitTagStateMode, "method used by flux for storing state")
+
 		// k8s-secret backed ssh keyring configuration
-		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
-		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
-		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
+		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s Secret used to store the private SSH key")
+		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s Secret storing the private SSH key")
+		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s Secret")
 		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
@@ -166,13 +171,53 @@ func main() {
 
 	// Argument validation
 
+	if *gitReadonly && *fluxStateMode != daemon.ConfigMapStateMode {
+		logger.Log("err", "to use readonly mode, you must set the --flux-state-mode flag to `"+daemon.ConfigMapStateMode+"`")
+	}
+
+	// check whether the user is configuring things only used for git access at the same time as configuring Flux to run without touching git
+	userHasConfiguredToNotStoreStateInGit := *gitReadonly || *fluxStateMode == daemon.ConfigMapStateMode
+	gitRelatedFlags := []string{
+		"git-notes-ref",
+		"git-label",
+		"git-user",
+		"git-email",
+		"git-set-author",
+		"git-notes-ref",
+		"git-ci-skip",
+		"git-ci-skip-message",
+	}
+	var changedGitRelatedFlags []string
+	for _, gitRelatedFlag := range gitRelatedFlags {
+		if fs.Changed(gitRelatedFlag) {
+			changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
+		}
+	}
+	userSeemsToBeConfiguringReadWriteGit := len(changedGitRelatedFlags) > 0
+	if userHasConfiguredToNotStoreStateInGit && userSeemsToBeConfiguringReadWriteGit {
+		var flags string
+		numFlags := len(changedGitRelatedFlags)
+		for index, flag := range changedGitRelatedFlags {
+			if index == numFlags-1 && numFlags > 1 {
+				flags += "or `" + flag + "`"
+				continue
+			}
+			flags += "`" + flag + "`, "
+		}
+		logger.Log("warning", "configuring "+flags+" has no effect when (A) --git-readonly=true or (B)using --flux-state-mode="+daemon.ConfigMapStateMode)
+	}
+
+	if fs.Changed("k8s-configmap-name") && *fluxStateMode != daemon.ConfigMapStateMode {
+		logger.Log("err", "you configured a ConfigMap name with --k8s-configmap-name="+*k8sConfigMapName+", but you haven't set flux to use the ConfigMap with --flux-state-mode="+daemon.ConfigMapStateMode)
+	}
+
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
 	if fs.Changed("git-label") {
-		*gitSyncTag = *gitLabel
+		*syncMarkerName = *gitLabel
 		*gitNotesRef = *gitLabel
-		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
+		for _, f := range []string{"sync-marker-name", "git-notes-ref"} {
 			if fs.Changed(f) {
 				logger.Log("overridden", f, "value", *gitLabel)
 			}
@@ -341,6 +386,7 @@ func main() {
 		}
 		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
 		if err != nil {
+			// READONLY-NOTE: TODO: file an issue: this warning should not appear if (I'm guessing) setting registryAWSRegions, registryAWSAccountIDs, or registryAWSBlockAccountIDs
 			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
 		} else {
 			imageCreds = credsWithAWSAuth
@@ -422,20 +468,29 @@ func main() {
 	}
 	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
-	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Paths:       *gitPath,
-		Branch:      *gitBranch,
-		SyncTag:     *gitSyncTag,
-		NotesRef:    *gitNotesRef,
-		UserName:    *gitUser,
-		UserEmail:   *gitEmail,
-		SigningKey:  *gitSigningKey,
-		SetAuthor:   *gitSetAuthor,
-		SkipMessage: *gitSkipMessage,
+		Paths:          *gitPath,
+		ReadOnly:       *gitReadonly,
+		Branch:         *gitBranch,
+		SyncMarkerName: *syncMarkerName,
+		NotesRef:       *gitNotesRef,
+		UserName:       *gitUser,
+		UserEmail:      *gitEmail,
+		SigningKey:     *gitSigningKey,
+		SetAuthor:      *gitSetAuthor,
+		SkipMessage:    *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout))
+	gitRemote := git.Remote{
+		URL: *gitURL,
+	}
+	options := []git.Option{
+		git.PollInterval(*gitPollInterval),
+		git.Timeout(*gitTimeout),
+		git.RepoIsReadOnly(*gitReadonly),
+	}
+
+	repo := git.NewRepo(gitRemote, options...)
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -451,7 +506,9 @@ func main() {
 		"user", *gitUser,
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,
-		"sync-tag", *gitSyncTag,
+		"sync-marker-name", *syncMarkerName,
+		"flux-state-mode", *fluxStateMode,
+		"readonly", *gitReadonly,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
 	)

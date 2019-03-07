@@ -115,12 +115,17 @@ spec:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}
           - --memcached-hostname={{ template "flux.fullname" . }}-memcached
+          {{ - if .Values.state.mode == "ConfigMap" }}
+          - --flux-state-mode={{ .Values.state.mode }}
+          - --k8s-configmap-name={{ .Values.state.configMapName }}
+          {{ - end }}
           {{- if .Values.memcached.createClusterIP }}
           - --memcached-service=
           {{- end }}
           - --git-url={{ .Values.git.url }}
           - --git-branch={{ .Values.git.branch }}
           - --git-path={{ .Values.git.path }}
+          - --git-readonly={{ .Values.git.readonly }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
           {{- if .Values.gpgKeys.secretName }}

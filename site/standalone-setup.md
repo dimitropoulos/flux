@@ -4,14 +4,14 @@ menu_order: 20
 ---
 
 - [Customising the daemon configuration](#customising-the-daemon-configuration)
-  * [Connect Flux to a repository](#connect-flux-to-a-repository)
-  * [Flux deployment](#flux-deployment)
-  * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
-    + [1. Allow Flux to generate a key for you.](#1-allow-flux-to-generate-a-key-for-you)
-    + [2. Specify a key to use](#2-specify-a-key-to-use)
-    + [Note for Kubernetes >=1.6 with role-based access control (RBAC)](#note-for-kubernetes-16-with-role-based-access-control-rbac)
-  * [Using a private git host](#using-a-private-git-host)
-  * [Memcache](#memcache)
+  - [Connect Flux to a repository](#connect-flux-to-a-repository)
+  - [Flux deployment](#flux-deployment)
+  - [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
+    - [1. Allow Flux to generate a key for you.](#1-allow-flux-to-generate-a-key-for-you)
+    - [2. Specify a key to use](#2-specify-a-key-to-use)
+    - [Note for Kubernetes >=1.6 with role-based access control (RBAC)](#note-for-kubernetes-16-with-role-based-access-control-rbac)
+  - [Using a private git host](#using-a-private-git-host)
+  - [Memcache](#memcache)
 
 # Customising the daemon configuration
 
@@ -40,7 +40,7 @@ can restart `flux` and it will continue to use the same key.
 
 Flux connects to the repository using an SSH key.
 
-***The SSH key must be configured to have R/W access to the repository***.
+> **Note:** When using Flux without the `--git-readonly=true` option, the SSH key must be configured to have Read/Write access to the repository.
 
 More specifically, in the case of standalone Flux, the ssh key must be able to
 create and update tags. E.g. in Gitlab, that means it requires `Maintainer`

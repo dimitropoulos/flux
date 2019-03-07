@@ -163,8 +163,12 @@ fluxctl identity
 
 In order to sync your cluster state with GitHub you need to copy the public key and
 create a deploy key with write access on your GitHub repository.
-Go to _Settings > Deploy keys_ click on _Add deploy key_, check
-_Allow write access_, paste the Flux public key and click _Add key_.
+
+Go to _Settings > Deploy keys_ click on _Add deploy key_.  Give the key a `Title` and paste the Flux public key.
+
+Most normal Flux installations will require git write access.  To allow for this check _Allow write access_ box.  If you are using the `--git-readonly=true` option, you can leave this box unchecked.
+
+click _Add key_.
 
 ### Uninstalling the Chart
 
@@ -208,7 +212,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.email`                                     | `support@weave.works`                                | Email to use as git committer
 | `git.setAuthor`                                 | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
 | `git.signingKey`                                | `None`                                               | If set, commits will be signed with this GPG key
-| `git.label`                                     | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
+| `git.syncMarkerName`                            | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch or as a property of a ConfigMap used for state management
 | `git.ciSkip`                                    | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
 | `git.pollInterval`                              | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                   | `20s`                                                | Duration after which git operations time out

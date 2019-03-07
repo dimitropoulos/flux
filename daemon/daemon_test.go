@@ -15,9 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
+	v10 "github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
+	v11 "github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -288,7 +291,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection",
 			opts: v10.ListImagesOptions{
-				Spec:                    specAll,
+				Spec: specAll,
 				OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"},
 			},
 			expectedImages: []v6.ImageStatus{
@@ -318,7 +321,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection with invalid field",
 			opts: v10.ListImagesOptions{
-				Spec:                    specAll,
+				Spec: specAll,
 				OverrideContainerFields: []string{"InvalidField"},
 			},
 			expectedImages: nil,
@@ -673,11 +676,11 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 
 	repo, repoCleanup := gittest.Repo(t)
 	params := git.Config{
-		Branch:    "master",
-		UserName:  "example",
-		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
-		NotesRef:  "fluxtest",
+		Branch:         "master",
+		UserName:       "example",
+		UserEmail:      "example@example.com",
+		SyncMarkerName: "flux-test",
+		NotesRef:       "fluxtest",
 	}
 
 	var k8s *cluster.Mock

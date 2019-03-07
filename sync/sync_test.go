@@ -37,10 +37,10 @@ func TestSync(t *testing.T) {
 // ---
 
 var gitconf = git.Config{
-	SyncTag:   "test-sync",
-	NotesRef:  "test-notes",
-	UserName:  "testuser",
-	UserEmail: "test@example.com",
+	SyncMarkerName: "test-sync",
+	NotesRef:       "test-notes",
+	UserName:       "testuser",
+	UserEmail:      "test@example.com",
 }
 
 func setup(t *testing.T) (*git.Checkout, func()) {

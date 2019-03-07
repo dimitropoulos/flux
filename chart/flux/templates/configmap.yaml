@@ -1,0 +1,6 @@
+{{- if .Values.state.mode == "ConfigMap" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "flux.fullname" . }}-state
+{{- end -}}

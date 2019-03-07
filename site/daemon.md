@@ -59,8 +59,8 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --git-set-author                                 | false                    | if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer
 | --git-gpg-key-import                             |                          | if set, fluxd will attempt to import the gpg key(s) found on the given path
 | --git-signing-key                                |                          | if set, commits made by fluxd to the user git repo will be signed with the provided GPG key. See [Git commit signing](git-commit-signing.md) to learn how to use this feature
-| --git-label                                      |                          | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
-| --git-sync-tag                                   | `flux-sync`              | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)
+| --git-label                                      |                          | label to keep track of sync progress; overrides both --sync-marker-name and --git-notes-ref
+| --sync-marker-name                           | `flux-sync`              | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
 | --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
@@ -86,6 +86,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --k8s-secret-volume-mount-path                   | `/etc/fluxd/ssh`         | mount location of the k8s secret storing the private SSH key
 | --k8s-secret-data-key                            | `identity`               | data key holding the private SSH key within the k8s secret
 | **k8s configuration**
+| --k8s-configmap-name                             | `GitTag`                 | name of the k8s ConfigMap used by Flux to hold application state
 | --k8s-namespace-whitelist                        |                          | Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.
 | **upstream service**
 | --connect                                        |                          | connect to an upstream service e.g., Weave Cloud, at this base address

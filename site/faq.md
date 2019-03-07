@@ -4,36 +4,37 @@ menu_order: 60
 ---
 
 - [General questions](#general-questions)
-  * [What does Flux do?](#what-does-flux-do)
-  * [How does it automate deployment?](#how-does-it-automate-deployment)
-  * [How is that different from a bash script?](#how-is-that-different-from-a-bash-script)
-  * [Why should I automate deployment?](#why-should-i-automate-deployment)
-  * [I thought Flux was about service routing?](#i-thought-flux-was-about-service-routing)
-  * [Are there nightly builds I can run?](#are-there-nightly-builds-i-can-run)
+  - [What does Flux do?](#what-does-flux-do)
+  - [How does it automate deployment?](#how-does-it-automate-deployment)
+  - [How is that different from a bash script?](#how-is-that-different-from-a-bash-script)
+  - [Why should I automate deployment?](#why-should-i-automate-deployment)
+  - [I thought Flux was about service routing?](#i-thought-flux-was-about-service-routing)
+  - [Are there nightly builds I can run?](#are-there-nightly-builds-i-can-run)
 - [Technical questions](#technical-questions)
-  * [Does it work only with one git repository?](#does-it-work-only-with-one-git-repository)
-  * [Do I have to put my application code and config in the same git repo?](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo)
-  * [Is there any special directory layout I need in my git repo?](#is-there-any-special-directory-layout-i-need-in-my-git-repo)
-  * [Why does Flux need a git ssh key with write access?](#why-does-flux-need-a-git-ssh-key-with-write-access)
-  * [Does Flux automatically sync changes back to git?](#does-flux-automatically-sync-changes-back-to-git)
-  * [Will Flux delete resources when I remove them from git?](#will-flux-delete-resources-when-i-remove-them-from-git)
-  * [How do I give Flux access to an image registry?](#how-do-i-give-flux-access-to-an-image-registry)
-  * [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
-  * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
-  * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
-  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
-  * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
-  * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
-  * [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
-  * [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
-  * [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
-  * [How can I prevent Flux overriding the replicas when using HPA?](#how-can-i-prevent-flux-overriding-the-replicas-when-using-hpa)
-  * [Can I disable Flux registry scanning?](#can-i-disable-flux-registry-scanning)
+  - [Does it work only with one git repository?](#does-it-work-only-with-one-git-repository)
+  - [Do I have to put my application code and config in the same git repo?](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo)
+  - [Is there any special directory layout I need in my git repo?](#is-there-any-special-directory-layout-i-need-in-my-git-repo)
+  - [Why does Flux need a git ssh key with write access?](#why-does-flux-need-a-git-ssh-key-with-write-access)
+  - [Does Flux automatically sync changes back to git?](#does-flux-automatically-sync-changes-back-to-git)
+  - [Will Flux delete resources when I remove them from git?](#will-flux-delete-resources-when-i-remove-them-from-git)
+  - [How do I give Flux access to an image registry?](#how-do-i-give-flux-access-to-an-image-registry)
+  - [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
+  - [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
+  - [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
+  - [Can I run Flux with readonly Git Access](#can-i-run-flux-with-readonly-git-access)
+  - [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
+  - [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
+  - [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
+  - [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
+  - [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
+  - [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
+  - [How can I prevent Flux overriding the replicas when using HPA?](#how-can-i-prevent-flux-overriding-the-replicas-when-using-hpa)
+  - [Can I disable Flux registry scanning?](#can-i-disable-flux-registry-scanning)
 - [Flux Helm Operator questions](#flux-helm-operator-questions)
-  * [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
-  * [I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-helmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
-  * [I've manually deleted a Helm release. Why is Flux not able to restore it?](#ive-manually-deleted-a-helm-release-why-is-flux-not-able-to-restore-it)
-  * [I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?](#i-have-a-dedicated-kubernetes-cluster-per-environment-and-i-want-to-use-the-same-git-repo-for-all-how-can-i-do-that)
+  - [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
+  - [I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-helmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
+  - [I've manually deleted a Helm release. Why is Flux not able to restore it?](#ive-manually-deleted-a-helm-release-why-is-flux-not-able-to-restore-it)
+  - [I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?](#i-have-a-dedicated-kubernetes-cluster-per-environment-and-i-want-to-use-the-same-git-repo-for-all-how-can-i-do-that)
 
 ## General questions
 
@@ -251,6 +252,12 @@ Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
+### Can I run Flux with readonly Git Access
+
+Yes.  You can use the `--git-readonly=true` command line argument.  The Helm chart exposes this as `git.readonly`.
+
+Although this is enough to prevent Flux from writing to your repository, you can also provide a readonly ssh key.  On GitHub this is accomplished by leaving the `Allow write access` box unchecked when you configure the deploy key.
+
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?
 
 As part of using git+ssh securely from the Flux daemon, we make sure
@@ -288,7 +295,7 @@ The other thing that can trigger CI is that Flux pushes a tag to the
 upstream git repo whenever it has applied new commits. This acts as a
 "high water mark" for Flux to know which commits have already been
 seen. The default name for this tag is `flux-sync`, but it can be
-changed with the flags `--git-sync-tag` and `--git-label`. The
+changed with the flags `--sync-marker-name` and `--git-label`. The
 simplest way to avoid triggering builds is to exclude this tag from
 builds -- how to do that will depend on how your CI system is
 configured.

@@ -23,11 +23,12 @@ type ImageStatus struct {
 type ReadOnlyReason string
 
 const (
-	ReadOnlyOK       ReadOnlyReason = ""
-	ReadOnlyMissing  ReadOnlyReason = "NotInRepo"
-	ReadOnlySystem   ReadOnlyReason = "System"
-	ReadOnlyNoRepo   ReadOnlyReason = "NoRepo"
-	ReadOnlyNotReady ReadOnlyReason = "NotReady"
+	ReadOnlyOK       ReadOnlyReason = ""             // the repo can be written to
+	ReadOnlyMissing  ReadOnlyReason = "NotInRepo"    // it's in a cluster but not in the git repo
+	ReadOnlySystem   ReadOnlyReason = "System"       // it's in control of kubernetes not by the repo
+	ReadOnlyNoRepo   ReadOnlyReason = "NoRepo"       // the user has elected to not supply a git repo
+	ReadOnlyNotReady ReadOnlyReason = "NotReady"     // Flux hasn't booted up yet
+	ReadOnlyMode     ReadOnlyReason = "ReadOnlyMode" // the user has set the --git-readonly flag to true
 )
 
 type ControllerStatus struct {

@@ -155,7 +155,7 @@ e.g., using
 
 Flux keeps track of the last commit that it's applied to the cluster,
 by pushing a tag (controlled by the command-line flags
-`--git-sync-tag` and `--git-label`) to the git repository. This gives
+`--sync-marker-name` and `--git-label`) to the git repository. This gives
 it a persistent high water mark, so even if it is restarted from
 scratch, it will be able to tell where it got to.
 

@@ -6,7 +6,7 @@ token: ""
 replicaCount: 1
 
 image:
-  repository: quay.io/weaveworks/flux
+  repository: quay.io/weaveworks/flux:latest
   tag: 1.10.1
   pullPolicy: IfNotPresent
   pullSecret:
@@ -99,6 +99,10 @@ gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
 
+state:
+  mode: "ConfigMap" # READONLY-NOTE: change to default of "GitTag" before merging
+  configMapName: "flux-state"
+
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
   url: ""
@@ -106,6 +110,8 @@ git:
   branch: "master"
   # Path within git repo to locate Kubernetes manifests (relative path)
   path: ""
+  # use if you want to Flux to be aware that you intend for Flux to not be able to push changes to git
+  readonly: true
   # Username to use as git committer
   user: "Weave Flux"
   # Email to use as git committer
@@ -156,6 +162,7 @@ registry:
   dockercfg:
     enabled: false
     secretName: ""
+
 memcached:
   repository: memcached
   tag: 1.4.25

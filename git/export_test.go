@@ -19,7 +19,10 @@ func TestExportAtRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo := NewRepo(Remote{URL: newDir}, ReadOnly)
+	gitRemote := Remote{
+		URL: newDir,
+	}
+	repo := NewRepo(gitRemote, RepoIsReadOnly(true))
 	if err := repo.Ready(ctx); err != nil {
 		t.Fatal(err)
 	}

@@ -13,10 +13,10 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
@@ -567,7 +567,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
+	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncMarkerName, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}

@@ -44,7 +44,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
-	if err = execCommand("git", "-C", filesDir, "commit", "-m", "'Initial revision'"); err != nil {
+	if err = execCommand("git", "-C", filesDir, "commit", "--message", "'Initial revision'"); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
@@ -74,14 +74,14 @@ func Workloads() (res []flux.ResourceID) {
 
 // CheckoutWithConfig makes a standard repo, clones it, and returns
 // the clone, the original repo, and a cleanup function.
-func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Repo, func()) {
+func CheckoutWithConfig(t *testing.T, gitConfig git.Config) (*git.Checkout, *git.Repo, func()) {
 	repo, cleanup := Repo(t)
 	if err := repo.Ready(context.Background()); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
 
-	co, err := repo.Clone(context.Background(), config)
+	co, err := repo.Clone(context.Background(), gitConfig)
 	if err != nil {
 		cleanup()
 		t.Fatal(err)
@@ -93,11 +93,11 @@ func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Re
 }
 
 var TestConfig git.Config = git.Config{
-	Branch:    "master",
-	UserName:  "example",
-	UserEmail: "example@example.com",
-	SyncTag:   "flux-test",
-	NotesRef:  "fluxtest",
+	Branch:         "master",
+	UserName:       "example",
+	UserEmail:      "example@example.com",
+	SyncMarkerName: "flux-test",
+	NotesRef:       "fluxtest",
 }
 
 // Checkout makes a standard repo, clones it, and returns the clone
