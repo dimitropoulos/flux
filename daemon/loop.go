@@ -53,7 +53,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// Keep track of current HEAD, so we can know when to treat a repo
 	// mirror notification as a change. Otherwise, we'll just sync
 	// every timer tick as well as every mirror refresh.
-	syncHead := ""
+	syncHead := git.GitRef("")
 
 	// Ask for a sync, and to poll images, straight away
 	d.AskForSync()
@@ -61,7 +61,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 
 	for {
 		var (
-			lastKnownSyncMarkerRev      string
+			lastKnownSyncMarkerRev      git.GitRef
 			warnedAboutSyncMarkerChange bool
 		)
 		select {
@@ -150,7 +150,7 @@ func (d *LoopVars) AskForImagePoll() {
 	}
 }
 
-func (d *Daemon) doSync(logger log.Logger, lastKnownSyncMarkerRev *string, warnedAboutSyncMarkerChange *bool) (retErr error) {
+func (d *Daemon) doSync(logger log.Logger, lastKnownSyncMarkerRev *git.GitRef, warnedAboutSyncMarkerChange *bool) (retErr error) {
 	started := time.Now().UTC()
 	defer func() {
 		syncDuration.With(
@@ -263,7 +263,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncMarkerRev *string, warne
 		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
 	}
 
-	var notes map[string]struct{}
+	var notes map[git.GitRef]struct{}
 	{
 		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 		notes, err = working.NoteRevList(ctx)
@@ -278,7 +278,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncMarkerRev *string, warne
 	// other things this sync includes e.g., releases and
 	// autoreleases, that we're already posting as events, so upstream
 	// can skip the sync event if it wants to.
-	includes := make(map[string]bool)
+	includes := make(map[git.GitRef]bool)
 	if len(commits) > 0 {
 		var noteEvents []event.Event
 

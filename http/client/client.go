@@ -13,11 +13,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
@@ -87,10 +88,14 @@ func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	return res, err
 }
 
-func (c *Client) SyncStatus(ctx context.Context, ref string) ([]string, error) {
+func (c *Client) SyncStatus(ctx context.Context, ref git.GitRef) ([]git.GitRef, error) {
 	var res []string
-	err := c.Get(ctx, &res, transport.SyncStatus, "ref", ref)
-	return res, err
+	err := c.Get(ctx, &res, transport.SyncStatus, "ref", string(ref))
+	result := []git.GitRef{}
+	for _, value := range res {
+		result = append(result, git.GitRef(value))
+	}
+	return result, err
 }
 
 func (c *Client) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {

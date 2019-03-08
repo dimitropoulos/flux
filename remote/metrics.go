@@ -9,10 +9,11 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/update"
@@ -108,7 +109,7 @@ func (i *instrumentedServer) JobStatus(ctx context.Context, id job.ID) (_ job.St
 	return i.s.JobStatus(ctx, id)
 }
 
-func (i *instrumentedServer) SyncStatus(ctx context.Context, cursor string) (_ []string, err error) {
+func (i *instrumentedServer) SyncStatus(ctx context.Context, cursor git.GitRef) (_ []git.GitRef, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "SyncStatus",

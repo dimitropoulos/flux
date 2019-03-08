@@ -456,7 +456,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 			return zero, err
 		}
 
-		var revision string
+		var revision git.GitRef
 
 		if c.ReleaseKind() == update.ReleaseKindExecute {
 			commitMsg := spec.Cause.Message
@@ -566,14 +566,14 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // we have applied (the sync tag) and the ref given, inclusive. E.g., if you send HEAD,
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
-func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
+func (d *Daemon) SyncStatus(ctx context.Context, commitRef git.GitRef) ([]git.GitRef, error) {
 	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncMarkerName, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
 	// NB we could use the messages too if we decide to change the
 	// signature of the API to include it.
-	revs := make([]string, len(commits))
+	revs := make([]git.GitRef, len(commits))
 	for i, commit := range commits {
 		revs[i] = commit.Revision
 	}

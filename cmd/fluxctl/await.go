@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -33,7 +34,7 @@ is safe to retry operations.`)
 		update.PrintResults(stdout, result.Result, verbosity)
 	}
 	if result.Revision != "" {
-		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", result.Revision[:7])
+		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", string(result.Revision)[:7])
 	}
 	if result.Result == nil {
 		fmt.Fprintf(stderr, "Nothing to do\n")
@@ -54,7 +55,7 @@ to run a sync interactively.`)
 			}
 			return err
 		}
-		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:7])
+		fmt.Fprintf(stderr, "Commit applied:\t%s\n", string(result.Revision)[:7])
 	}
 
 	return nil
@@ -85,7 +86,7 @@ func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (job.Result,
 }
 
 // await polls for a commit to have been applied, with exponential backoff.
-func awaitSync(ctx context.Context, client api.Server, revision string) error {
+func awaitSync(ctx context.Context, client api.Server, revision git.GitRef) error {
 	return backoff(1*time.Second, 2, 10, 1*time.Minute, func() (bool, error) {
 		refs, err := client.SyncStatus(ctx, revision)
 		return err == nil && len(refs) == 0, err

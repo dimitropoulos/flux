@@ -12,8 +12,9 @@ import (
 	"github.com/weaveworks/flux"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
@@ -87,7 +88,7 @@ func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 	ref := mux.Vars(r)["ref"]
-	commits, err := s.server.SyncStatus(r.Context(), ref)
+	commits, err := s.server.SyncStatus(r.Context(), git.GitRef(ref))
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

@@ -6,10 +6,11 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -166,7 +167,7 @@ func (p *RPCClientV6) JobStatus(ctx context.Context, jobID job.ID) (job.Status, 
 	return result, err
 }
 
-func (p *RPCClientV6) SyncStatus(ctx context.Context, ref string) ([]string, error) {
+func (p *RPCClientV6) SyncStatus(ctx context.Context, ref git.GitRef) ([]git.GitRef, error) {
 	var result []string
 	err := p.client.Call("RPCServer.SyncStatus", ref, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
@@ -175,7 +176,11 @@ func (p *RPCClientV6) SyncStatus(ctx context.Context, ref string) ([]string, err
 	if err != nil {
 		err = remoteApplicationError(err)
 	}
-	return result, err
+	output := []git.GitRef{}
+	for _, value := range result {
+		output = append(output, git.GitRef(value))
+	}
+	return output, err
 }
 
 func (p *RPCClientV6) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {

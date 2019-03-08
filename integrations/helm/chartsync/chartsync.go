@@ -102,7 +102,7 @@ func (c Config) WithDefaults() Config {
 // revision), so we can keep track of when it needs to be updated.
 type clone struct {
 	export *git.Export
-	head   string
+	head   git.GitRef
 }
 
 type ChartChangeSync struct {
@@ -116,7 +116,7 @@ type ChartChangeSync struct {
 	mirrors *git.Mirrors
 
 	clonesMu sync.Mutex
-	clones   map[string]clone
+	clones   map[git.GitRef]clone
 
 	namespace string
 }
@@ -130,7 +130,7 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 		release:    release,
 		config:     config.WithDefaults(),
 		mirrors:    git.NewMirrors(),
-		clones:     make(map[string]clone),
+		clones:     make(map[git.GitRef]clone),
 		namespace:  namespace,
 	}
 }
@@ -206,7 +206,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					// This FHR is using a git repo; and, it appears to have had commits since we last saw it.
 					// Check explicitly whether we should update its clone.
 					chs.clonesMu.Lock()
-					cloneForChart, ok := chs.clones[releaseName]
+					cloneForChart, ok := chs.clones[git.GitRef(releaseName)]
 					chs.clonesMu.Unlock()
 
 					if ok { // found clone
@@ -232,7 +232,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 						}
 						newCloneForChart := clone{head: refHead, export: newClone}
 						chs.clonesMu.Lock()
-						chs.clones[releaseName] = newCloneForChart
+						chs.clones[git.GitRef(releaseName)] = newCloneForChart
 						chs.clonesMu.Unlock()
 						if cloneForChart.export != nil {
 							cloneForChart.export.Clean()
@@ -309,7 +309,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		// under us. TODO(michael) consider having a lock per clone.
 		chs.clonesMu.Lock()
 		defer chs.clonesMu.Unlock()
-		chartClone, ok := chs.clones[releaseName]
+		chartClone, ok := chs.clones[git.GitRef(releaseName)]
 		// FIXME(michael): if it's not cloned, and it's not going to
 		// be, we might not want to wait around until the next tick
 		// before reporting what's wrong with it. But if we just use

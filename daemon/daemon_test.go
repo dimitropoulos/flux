@@ -18,7 +18,6 @@ import (
 	v10 "github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	v11 "github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
 	v6 "github.com/weaveworks/flux/api/v6"
 	v9 "github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -680,7 +679,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		UserName:       "example",
 		UserEmail:      "example@example.com",
 		SyncMarkerName: "flux-test",
-		NotesRef:       "fluxtest",
+		NotesRef:       GitRef("fluxtest"),
 	}
 
 	var k8s *cluster.Mock
@@ -847,7 +846,7 @@ func (w *wait) ForJobSucceeded(d *Daemon, jobID job.ID) job.Status {
 	return stat
 }
 
-func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []string {
+func (w *wait) ForSyncStatus(d *Daemon, rev git.GitRef, expectedNumCommits int) []string {
 	var revs []string
 	var err error
 	w.Eventually(func() bool {

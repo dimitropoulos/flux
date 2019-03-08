@@ -6,10 +6,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -60,7 +61,7 @@ func (bc baseClient) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return job.Status{}, remote.UpgradeNeededError(errors.New("JobStatus method not implemented"))
 }
 
-func (bc baseClient) SyncStatus(context.Context, string) ([]string, error) {
+func (bc baseClient) SyncStatus(context.Context, git.GitRef) ([]git.GitRef, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }
 

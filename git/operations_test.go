@@ -85,7 +85,7 @@ func TestListNotes_0Notes(t *testing.T) {
 	}
 }
 
-func testNote(dir, rev string) (string, error) {
+func testNote(dir, rev GitRef) (GitRef, error) {
 	id := fmt.Sprintf("%v", noteIDCounter)
 	noteIDCounter += 1
 	err := addNote(context.Background(), dir, rev, testNoteRef, &Note{ID: id})

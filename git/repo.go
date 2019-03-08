@@ -197,7 +197,7 @@ func (r *Repo) errorIfNotReady() error {
 }
 
 // Revision returns the revision (SHA1) of the ref passed in
-func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
+func (r *Repo) Revision(ctx context.Context, ref GitRef) (GitRef, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
@@ -206,7 +206,7 @@ func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
 	return refRevision(ctx, r.dir, ref)
 }
 
-func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBefore(ctx context.Context, ref GitRef, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
@@ -215,7 +215,7 @@ func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) (
 	return onelinelog(ctx, r.dir, ref, paths)
 }
 
-func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBetween(ctx context.Context, ref1 GitRef, ref2 GitRef, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
@@ -394,7 +394,7 @@ func (r *Repo) fetch(ctx context.Context) error {
 
 // createClone makes a non-bare clone, at `ref` (probably a branch),
 // and returns the filesystem path to it.
-func (r *Repo) createClone(ctx context.Context, ref string) (string, error) {
+func (r *Repo) createClone(ctx context.Context, ref GitRef) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
@@ -435,7 +435,7 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}
 
 	r.mu.RLock()
-	if err := fetch(ctx, repoDir, r.dir, realNotesRef+":"+realNotesRef); err != nil {
+	if err := fetch(ctx, repoDir, r.dir, string(realNotesRef)+":"+string(realNotesRef)); err != nil {
 		os.RemoveAll(repoDir)
 		r.mu.RUnlock()
 		return nil, err

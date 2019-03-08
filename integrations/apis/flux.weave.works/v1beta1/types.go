@@ -9,6 +9,7 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 )
 
 // +genclient
@@ -40,15 +41,15 @@ type ChartSource struct {
 }
 
 type GitChartSource struct {
-	GitURL string `json:"git"`
-	Ref    string `json:"ref"`
-	Path   string `json:"path"`
+	GitURL string     `json:"git"`
+	Ref    git.GitRef `json:"ref"`
+	Path   string     `json:"path"`
 }
 
 // DefaultGitRef is the ref assumed if the Ref field is not given in a GitChartSource
 const DefaultGitRef = "master"
 
-func (s GitChartSource) RefOrDefault() string {
+func (s GitChartSource) RefOrDefault() git.GitRef {
 	if s.Ref == "" {
 		return DefaultGitRef
 	}

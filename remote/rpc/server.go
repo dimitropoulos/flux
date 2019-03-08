@@ -6,13 +6,14 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
-	"github.com/weaveworks/flux/api/v10"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
+	"github.com/weaveworks/flux/git"
 
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
@@ -164,11 +165,11 @@ func (p *RPCServer) JobStatus(jobID job.ID, resp *JobStatusResponse) error {
 }
 
 type SyncStatusResponse struct {
-	Result           []string
+	Result           []git.GitRef
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) SyncStatus(ref string, resp *SyncStatusResponse) error {
+func (p *RPCServer) SyncStatus(ref git.GitRef, resp *SyncStatusResponse) error {
 	v, err := p.s.SyncStatus(context.Background(), ref)
 	resp.Result = v
 	if err != nil {

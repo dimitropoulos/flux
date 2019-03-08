@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/image"
 )
 
@@ -57,5 +58,6 @@ type ImageUpdate struct {
 }
 
 type GitUpdate struct {
-	URL, Branch string
+	URL    string
+	Branch git.GitRef
 }

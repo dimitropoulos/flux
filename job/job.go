@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -30,7 +31,7 @@ const (
 // used to send. But in the interest of breaking cycles before
 // they happen, it's (almost) duplicated here.
 type Result struct {
-	Revision string        `json:"revision,omitempty"`
+	Revision git.GitRef    `json:"revision,omitempty"`
 	Spec     *update.Spec  `json:"spec,omitempty"`
 	Result   update.Result `json:"result,omitempty"`
 }

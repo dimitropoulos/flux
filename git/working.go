@@ -9,11 +9,11 @@ import (
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch         string   // branch we're syncing to
+	Branch         GitRef   // branch we're syncing to
 	Paths          []string // paths within the repo containing files we care about
 	ReadOnly       bool     // Flux can read but not write to the git repo
-	SyncMarkerName string
-	NotesRef       string
+	SyncMarkerName GitRef
+	NotesRef       GitRef
 	UserName       string
 	UserEmail      string
 	SigningKey     string
@@ -28,13 +28,13 @@ type Checkout struct {
 	dir          string
 	config       Config
 	upstream     Remote
-	realNotesRef string // cache the notes ref, since we use it to push as well
+	realNotesRef GitRef // cache the notes ref, since we use it to push as well
 }
 
 // Commit refers to a git commit
 type Commit struct {
 	SigningKey string
-	Revision   string
+	Revision   GitRef
 	Message    string
 }
 
@@ -47,7 +47,7 @@ type CommitAction struct {
 
 // SyncMarkerAction - struct holding tag information
 type SyncMarkerAction struct {
-	Revision   string
+	Revision   GitRef
 	Message    string
 	SigningKey string
 }
@@ -105,7 +105,9 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		}
 	}
 
-	refs := []string{c.config.Branch}
+	refs := []GitRef{
+		GitRef(c.config.Branch), // READONLY-NOTE: TODO: is this a bug?
+	}
 	ok, err := refExists(ctx, c.dir, c.realNotesRef)
 	if ok {
 		refs = append(refs, c.realNotesRef)
@@ -120,17 +122,17 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 }
 
 // GetNote gets a note for the revision specified, or nil if there is no such note.
-func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (bool, error) {
+func (c *Checkout) GetNote(ctx context.Context, rev GitRef, note interface{}) (bool, error) {
 	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
 }
 
 // HeadRevision returns the revision of the current git HEAD
-func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
+func (c *Checkout) HeadRevision(ctx context.Context) (GitRef, error) {
 	return refRevision(ctx, c.dir, "HEAD")
 }
 
 // SyncMarkerRevision returns the revision of the SyncMarker
-func (c *Checkout) SyncMarkerRevision(ctx context.Context) (string, error) {
+func (c *Checkout) SyncMarkerRevision(ctx context.Context) (GitRef, error) {
 	if c.config.ReadOnly {
 		return getConfigMapSyncMarkerRevision(ctx)
 	}
@@ -155,16 +157,16 @@ func (c *Checkout) VerifySyncTag(ctx context.Context) error {
 }
 
 // ChangedFiles does a git diff listing changed files
-func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
+func (c *Checkout) ChangedFiles(ctx context.Context, ref GitRef) ([]string, error) {
 	list, err := changed(ctx, c.dir, ref, c.config.Paths)
 	if err == nil {
 		for i, file := range list {
-			list[i] = filepath.Join(c.dir, file)
+			list[i] = filepath.Join(c.dir, string(file))
 		}
 	}
 	return list, err
 }
 
-func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
+func (c *Checkout) NoteRevList(ctx context.Context) (map[GitRef]struct{}, error) {
 	return noteRevList(ctx, c.dir, c.realNotesRef)
 }

@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -136,7 +137,7 @@ func (p *RPCClientV7) JobStatus(ctx context.Context, jobID job.ID) (job.Status, 
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) SyncStatus(ctx context.Context, ref string) ([]string, error) {
+func (p *RPCClientV7) SyncStatus(ctx context.Context, ref git.GitRef) ([]git.GitRef, error) {
 	var resp SyncStatusResponse
 	err := p.client.Call("RPCServer.SyncStatus", ref, &resp)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -140,15 +141,15 @@ func (e Event) String() string {
 		return fmt.Sprintf("Commit: %s, %s", shortRevision(metadata.Revision), svcStr)
 	case EventSync:
 		metadata := e.Metadata.(*SyncEventMetadata)
-		revStr := "<no revision>"
+		revStr := git.GitRef("<no revision>")
 		if 0 < len(metadata.Commits) && len(metadata.Commits) <= 2 {
 			revStr = shortRevision(metadata.Commits[0].Revision)
 		} else if len(metadata.Commits) > 2 {
-			revStr = fmt.Sprintf(
+			revStr = git.GitRef(fmt.Sprintf(
 				"%s..%s",
-				shortRevision(metadata.Commits[len(metadata.Commits)-1].Revision),
-				shortRevision(metadata.Commits[0].Revision),
-			)
+				string(shortRevision(metadata.Commits[len(metadata.Commits)-1].Revision)),
+				string(shortRevision(metadata.Commits[0].Revision)),
+			))
 		}
 		svcStr := "no services changed"
 		if len(strServiceIDs) > 0 {
@@ -170,7 +171,7 @@ func (e Event) String() string {
 	}
 }
 
-func shortRevision(rev string) string {
+func shortRevision(rev git.GitRef) git.GitRef {
 	if len(rev) <= 7 {
 		return rev
 	}
@@ -179,12 +180,12 @@ func shortRevision(rev string) string {
 
 // CommitEventMetadata is the metadata for when new git commits are created
 type CommitEventMetadata struct {
-	Revision string        `json:"revision,omitempty"`
+	Revision git.GitRef    `json:"revision,omitempty"`
 	Spec     *update.Spec  `json:"spec"`
 	Result   update.Result `json:"result,omitempty"`
 }
 
-func (c CommitEventMetadata) ShortRevision() string {
+func (c CommitEventMetadata) ShortRevision() git.GitRef {
 	return shortRevision(c.Revision)
 }
 
@@ -193,8 +194,8 @@ func (c CommitEventMetadata) ShortRevision() string {
 // anyway represent coupling (of an internal API to serialised data)
 // that we don't want.
 type Commit struct {
-	Revision string `json:"revision"`
-	Message  string `json:"message"`
+	Revision git.GitRef `json:"revision"`
+	Message  string     `json:"message"`
 }
 
 type ResourceError struct {
@@ -206,12 +207,12 @@ type ResourceError struct {
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
 	// for parsing old events; Commits is now used in preference
-	Revs    []string `json:"revisions,omitempty"`
-	Commits []Commit `json:"commits,omitempty"`
+	Revs    []git.GitRef `json:"revisions,omitempty"`
+	Commits []Commit     `json:"commits,omitempty"`
 	// Which "kinds" of commit this includes; release, autoreleases,
 	// policy changes, and "other" (meaning things we didn't commit
 	// ourselves)
-	Includes map[string]bool `json:"includes,omitempty"`
+	Includes map[git.GitRef]bool `json:"includes,omitempty"`
 	// Per-resource errors
 	Errors []ResourceError `json:"errors,omitempty"`
 	// `true` if we have no record of having synced before
@@ -235,7 +236,7 @@ func (ev *SyncEventMetadata) UnmarshalJSON(b []byte) error {
 }
 
 type ReleaseEventCommon struct {
-	Revision string        // the revision which has the changes for the release
+	Revision git.GitRef    // the revision which has the changes for the release
 	Result   update.Result `json:"result"`
 	// Message of the error if there was one.
 	Error string `json:"error,omitempty"`

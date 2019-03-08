@@ -27,7 +27,7 @@ import (
 const (
 	gitPath     = ""
 	syncMarker  = "flux-sync"
-	gitNotesRef = "flux"
+	gitNotesRef = GitRef("flux")
 	gitUser     = "Weave Flux"
 	gitEmail    = "support@weave.works"
 )

@@ -10,10 +10,11 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -41,7 +42,7 @@ type MockServer struct {
 
 	NotifyChangeError error
 
-	SyncStatusAnswer []string
+	SyncStatusAnswer []git.GitRef
 	SyncStatusError  error
 
 	JobStatusAnswer job.Status
@@ -92,7 +93,7 @@ func (p *MockServer) NotifyChange(ctx context.Context, change v9.Change) error {
 	return p.NotifyChangeError
 }
 
-func (p *MockServer) SyncStatus(context.Context, string) ([]string, error) {
+func (p *MockServer) SyncStatus(context.Context, git.GitRef) ([]git.GitRef, error) {
 	return p.SyncStatusAnswer, p.SyncStatusError
 }
 
@@ -152,7 +153,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		},
 	}
 
-	syncStatusAnswer := []string{
+	syncStatusAnswer := []git.GitRef{
 		"commit 1",
 		"commit 2",
 		"commit 3",
@@ -237,7 +238,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error(err)
 	}
 
-	syncSt, err := client.SyncStatus(ctx, "HEAD")
+	syncSt, err := client.SyncStatus(ctx, git.GitRef("HEAD"))
 	if err != nil {
 		t.Error(err)
 	}

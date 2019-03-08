@@ -49,9 +49,9 @@ type ControllerStatus struct {
 // --- config types
 
 type GitRemoteConfig struct {
-	URL    string `json:"url"`
-	Branch string `json:"branch"`
-	Path   string `json:"path"`
+	URL    string     `json:"url"`
+	Branch git.GitRef `json:"branch"`
+	Path   string     `json:"path"`
 }
 
 type GitConfig struct {
@@ -72,7 +72,7 @@ type NotDeprecated interface {
 	ListServices(ctx context.Context, namespace string) ([]ControllerStatus, error)
 	ListImages(ctx context.Context, spec update.ResourceSpec) ([]ImageStatus, error)
 	UpdateManifests(context.Context, update.Spec) (job.ID, error)
-	SyncStatus(ctx context.Context, ref string) ([]string, error)
+	SyncStatus(ctx context.Context, ref git.GitRef) ([]git.GitRef, error)
 	JobStatus(context.Context, job.ID) (job.Status, error)
 	GitRepoConfig(ctx context.Context, regenerate bool) (GitConfig, error)
 }

@@ -55,9 +55,9 @@ const (
 
 	// There are running systems that assume these defaults (by not
 	// supplying a value for one or both). Don't change them.
-	defaultSyncMarkerName = "flux-sync"
-	defaultGitNotesRef    = "flux"
-	defaultGitSkipMessage = "\n\n[ci skip]"
+	defaultSyncMarkerName            = "flux-sync"
+	defaultGitNotesRef    git.GitRef = "flux"
+	defaultGitSkipMessage            = "\n\n[ci skip]"
 )
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
@@ -92,7 +92,7 @@ func main() {
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --sync-marker-name and --git-notes-ref") // READONLY-NOTE: figure out what to do with this
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		syncMarkerName = fs.String("sync-marker-name", defaultSyncMarkerName, "tag to use to mark sync progress for this cluster")
-		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
+		gitNotesRef    = fs.String("git-notes-ref", string(defaultGitNotesRef), "ref to use for keeping commit annotations in git notes")
 		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
 
@@ -471,9 +471,9 @@ func main() {
 	gitConfig := git.Config{
 		Paths:          *gitPath,
 		ReadOnly:       *gitReadonly,
-		Branch:         *gitBranch,
-		SyncMarkerName: *syncMarkerName,
-		NotesRef:       *gitNotesRef,
+		Branch:         git.GitRef(*gitBranch),
+		SyncMarkerName: git.GitRef(*syncMarkerName),
+		NotesRef:       git.GitRef(*gitNotesRef),
 		UserName:       *gitUser,
 		UserEmail:      *gitEmail,
 		SigningKey:     *gitSigningKey,

@@ -16,12 +16,12 @@ type ConfigMapShim struct {
 
 var configMapShim ConfigMapShim
 
-func updateConfigMapState(ctx context.Context, configMapName string, syncMarkerAction SyncMarkerAction) error {
+func updateConfigMapState(ctx context.Context, configMapName GitRef, syncMarkerAction SyncMarkerAction) error {
 	configMapShim.data.FluxSync = syncMarkerAction
 	return nil
 }
 
-func getConfigMapSyncMarkerRevision(ctx context.Context) (string, error) {
+func getConfigMapSyncMarkerRevision(ctx context.Context) (GitRef, error) {
 	revision := configMapShim.data.FluxSync.Revision
 	return revision, nil
 }

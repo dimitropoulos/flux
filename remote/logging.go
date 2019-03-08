@@ -6,10 +6,11 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -81,7 +82,7 @@ func (p *ErrorLoggingServer) JobStatus(ctx context.Context, jobID job.ID) (_ job
 	return p.server.JobStatus(ctx, jobID)
 }
 
-func (p *ErrorLoggingServer) SyncStatus(ctx context.Context, ref string) (_ []string, err error) {
+func (p *ErrorLoggingServer) SyncStatus(ctx context.Context, ref git.GitRef) (_ []git.GitRef, err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "SyncStatus", "error", err)
