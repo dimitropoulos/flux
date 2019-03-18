@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"context"
+	"github.com/weaveworks/flux/entities"
 	"time"
 )
 
@@ -51,10 +52,11 @@ type Repo struct {
 	readonly bool
 
 	// State
-	mu     sync.RWMutex
-	status GitRepoStatus
-	err    error
-	dir    string
+	mu        sync.RWMutex
+	status    GitRepoStatus
+	err       error
+	dir       string
+	stateMode string
 
 	notify chan struct{}
 	C      chan struct{}
@@ -113,14 +115,15 @@ func NewRepo(origin Remote, opts ...Option) *Repo {
 	dir := getTempDirectory()
 
 	r := &Repo{
-		dir:      dir,
-		origin:   origin,
-		status:   status,
-		interval: defaultInterval,
-		timeout:  defaultTimeout,
-		err:      ErrNotCloned,
-		notify:   make(chan struct{}, 1), // `1` so that Notify doesn't block
-		C:        make(chan struct{}, 1), // `1` so we don't block on completing a refresh
+		dir:       dir,
+		origin:    origin,
+		status:    status,
+		interval:  defaultInterval,
+		timeout:   defaultTimeout,
+		err:       ErrNotCloned,
+		stateMode: origin.StateMode,
+		notify:    make(chan struct{}, 1), // `1` so that Notify doesn't block
+		C:         make(chan struct{}, 1), // `1` so we don't block on completing a refresh
 	}
 	for _, opt := range opts {
 		opt.apply(r)
@@ -274,7 +277,7 @@ func (r *Repo) step(bg context.Context) bool {
 		return false
 
 	case RepoCloned:
-		if !r.IsReadOnly() {
+		if !r.IsReadOnly() || r.stateMode == entities.GitTagStateMode {
 			ctx, cancel := context.WithTimeout(bg, r.timeout)
 			err := checkPush(ctx, dir, url)
 			cancel()

@@ -9,7 +9,8 @@ import (
 
 // Remote points at a git repo somewhere.
 type Remote struct {
-	URL string // clone from here
+	URL       string // clone from here
+	StateMode string
 }
 
 func (r Remote) SafeURL() string {

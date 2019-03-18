@@ -28,6 +28,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
+	"github.com/weaveworks/flux/entities"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/gpg"
 	transport "github.com/weaveworks/flux/http"
@@ -129,7 +130,7 @@ func main() {
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
 
 		// Flux state
-		fluxStateMode = fs.String("flux-state-mode", fluxsync.GitTagStateMode, "method used by flux for storing state")
+		fluxStateMode = fs.String("flux-state-mode", entities.GitTagStateMode, "method used by flux for storing state")
 
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
@@ -184,9 +185,9 @@ func main() {
 
 	// Argument validation
 
-	if *gitReadonly && *fluxStateMode != fluxsync.NativeStateMode {
-		logger.Log("warning", "to use readonly mode, you must use --flux-state-mode="+fluxsync.NativeStateMode+".  instead you configured flux to use --flux-state-mode="+*fluxStateMode+".  overriding to use --flux-state-mode="+fluxsync.NativeStateMode)
-		*fluxStateMode = fluxsync.NativeStateMode
+	if *gitReadonly && *fluxStateMode != entities.NativeStateMode {
+		logger.Log("warning", "to use readonly mode, you must use --flux-state-mode="+entities.NativeStateMode+".  instead you configured flux to use --flux-state-mode="+*fluxStateMode+".  overriding to use --flux-state-mode="+entities.NativeStateMode)
+		*fluxStateMode = entities.NativeStateMode
 	}
 
 	// check whether the user is configuring things only used for git access at the same time as configuring Flux to run without touching git
@@ -206,7 +207,7 @@ func main() {
 	}
 	if *gitReadonly && len(changedGitRelatedFlags) > 0 {
 		flags := strings.Join(changedGitRelatedFlags, ", ")
-		logger.Log("warning", "configuring "+flags+" has no effect when either (A) using --git-readonly=true or when (B) using --flux-state-mode="+fluxsync.NativeStateMode)
+		logger.Log("warning", "configuring "+flags+" has no effect when either (A) using --git-readonly=true or when (B) using --flux-state-mode="+entities.NativeStateMode)
 	}
 
 	// Sort out values for the git tag and notes ref. There are
@@ -477,7 +478,8 @@ func main() {
 	}
 
 	gitRemote := git.Remote{
-		URL: *gitURL,
+		URL:       *gitURL,
+		StateMode: *fluxStateMode,
 	}
 	options := []git.Option{
 		git.PollInterval(*gitPollInterval),
@@ -514,11 +516,11 @@ func main() {
 
 	var syncProvider fluxsync.SyncProvider
 	switch *fluxStateMode {
-	case fluxsync.NativeStateMode:
+	case entities.NativeStateMode:
 		// reminder: this code assumes that if we are in readonly mode the *fluxStateMode has already been forced to NativeStateMode
 		syncProvider = nativestate.NewNativeSyncProvider()
 
-	case fluxsync.GitTagStateMode:
+	case entities.GitTagStateMode:
 		syncProvider = git.NewGitTagSyncProvider(
 			repo.Dir(),
 			*gitSyncTag,
