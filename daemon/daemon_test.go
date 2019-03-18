@@ -676,7 +676,6 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
 

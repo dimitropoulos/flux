@@ -40,7 +40,7 @@ can restart `flux` and it will continue to use the same key.
 
 Flux connects to the repository using an SSH key.
 
-***The SSH key must be configured to have R/W access to the repository***.
+> **Note:** When using Flux without the `--git-readonly=true` option, the SSH key must be configured to have Read/Write access to the repository.
 
 More specifically, in the case of standalone Flux, the ssh key must be able to
 create and update tags. E.g. in Gitlab, that means it requires `Maintainer`

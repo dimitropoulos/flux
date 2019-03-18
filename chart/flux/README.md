@@ -163,8 +163,12 @@ fluxctl identity
 
 In order to sync your cluster state with GitHub you need to copy the public key and
 create a deploy key with write access on your GitHub repository.
-Go to _Settings > Deploy keys_ click on _Add deploy key_, check
-_Allow write access_, paste the Flux public key and click _Add key_.
+
+Go to _Settings > Deploy keys_ click on _Add deploy key_.  Give the key a `Title` and paste the Flux public key.
+
+Most normal Flux installations will require git write access.  To allow for this check _Allow write access_ box.  If you are using the `--git-readonly=true` option, you can leave this box unchecked.
+
+click _Add key_.
 
 ### Uninstalling the Chart
 

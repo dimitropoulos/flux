@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
+	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -53,6 +54,7 @@ type Daemon struct {
 	JobStatusCache *job.StatusCache
 	EventWriter    event.EventWriter
 	Logger         log.Logger
+	SyncProvider   fluxsync.SyncProvider
 	// bookkeeping
 	*LoopVars
 }
@@ -561,13 +563,15 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	return status, err
 }
 
-// Ask the daemon how far it's got applying things; in particular, is it
-// past the given commit? Return the list of commits between where
-// we have applied (the sync tag) and the ref given, inclusive. E.g., if you send HEAD,
-// you'll get all the commits yet to be applied. If you send a hash
-// and it's applied at or _past_ it, you'll get an empty list.
+// SyncStatus asks the daemon how far it's got applying things; in particular, is it past the given commit? Return the list of commits between where we have applied (the sync marker) and the ref given, inclusive.
+// For example, if you send `HEAD` as the commitRef, you'll get all the commits yet to be applied. If you send a hash and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
+	syncMarkerRevision, err := d.SyncProvider.GetRevision(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	commits, err := d.Repo.CommitsBetween(ctx, syncMarkerRevision, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}

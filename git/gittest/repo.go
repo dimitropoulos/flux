@@ -78,7 +78,7 @@ func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Re
 	// Add files to the repo with the same name as the git branch and the sync tag.
 	// This is to make sure that git commands don't have ambiguity problems between revisions and files.
 	testfiles.Files[config.Branch] = "Filename doctored to create a conflict with the git branch name"
-	testfiles.Files[config.SyncTag] = "Filename doctored to create a conflict with the git sync tag"
+	// testfiles.Files[config.SyncTag] = "Filename doctored to create a conflict with the git sync tag" // READONLY-NOTE: need to figure out now that the config itself doesn't have access to the SyncTag
 	repo, cleanup := Repo(t)
 	if err := repo.Ready(context.Background()); err != nil {
 		cleanup()
@@ -94,7 +94,7 @@ func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Re
 		co.Clean()
 		cleanup()
 		delete(testfiles.Files, config.Branch)
-		delete(testfiles.Files, config.SyncTag)
+		// delete(testfiles.Files, config.SyncTag) // READONLY-NOTE: need to figure out now that the config itself doesn't have access to the SyncTag
 	}
 }
 
@@ -102,7 +102,6 @@ var TestConfig git.Config = git.Config{
 	Branch:    "master",
 	UserName:  "example",
 	UserEmail: "example@example.com",
-	SyncTag:   "flux-test",
 	NotesRef:  "fluxtest",
 }
 

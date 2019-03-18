@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/gpg/gpgtest"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 type Note struct {
@@ -139,12 +140,25 @@ func TestSignedTag(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer"}
-	if err := checkout.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+	syncProvider := git.NewGitTagSyncProvider(
+		checkout.Dir(),
+		"flux-test",
+		"",
+		signingKey,
+		"User Name",
+		"email@test.com",
+	)
+
+	syncMarkerAction := fluxsync.SyncMarkerAction{
+		Revision: "HEAD",
+		Message:  "Sync pointer",
+	}
+
+	if err := syncProvider.UpdateMarker(ctx, syncMarkerAction); err != nil {
 		t.Fatal(err)
 	}
 
-	err := checkout.VerifySyncTag(ctx)
+	err := syncProvider.VerifySyncTag(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +180,6 @@ func TestCheckout(t *testing.T) {
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
 	checkout, err := repo.Clone(ctx, params)

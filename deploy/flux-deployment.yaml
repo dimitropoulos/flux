@@ -106,6 +106,12 @@ spec:
         - --git-url=git@github.com:weaveworks/flux-get-started
         - --git-branch=master
 
+        # give flux readonly access to the repo (defalut false)
+        # - --git-readonly=true # requires `--flux-state-mode=Native`
+
+        # instruct flux where to store state (default "GitTag")
+        # - --flux-state-mode=Native
+
         # include these next two to connect to an "upstream" service
         # (e.g., Weave Cloud). The token is particular to the service.
         # - --connect=wss://cloud.weave.works/api/flux

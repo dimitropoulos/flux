@@ -61,8 +61,8 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 
 	for {
 		var (
-			lastKnownSyncTagRev      string
-			warnedAboutSyncTagChange bool
+			lastKnownSyncMarkerRev      string
+			warnedAboutSyncMarkerChange bool
 		)
 		select {
 		case <-stop:
@@ -86,7 +86,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				default:
 				}
 			}
-			if err := d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange); err != nil {
+			if err := d.doSync(logger, &lastKnownSyncMarkerRev, &warnedAboutSyncMarkerChange); err != nil {
 				logger.Log("err", err)
 			}
 			syncTimer.Reset(d.SyncInterval)
@@ -150,9 +150,7 @@ func (d *LoopVars) AskForImagePoll() {
 	}
 }
 
-// -- extra bits the loop needs
-
-func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAboutSyncTagChange *bool) (retErr error) {
+func (d *Daemon) doSync(logger log.Logger, lastKnownSyncMarkerRev *string, warnedAboutSyncMarkerChange *bool) (retErr error) {
 	started := time.Now().UTC()
 	defer func() {
 		syncDuration.With(
@@ -181,20 +179,21 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	}
 
 	// For comparison later.
-	oldTagRev, err := working.SyncRevision(ctx)
+	oldSyncMarkerRev, err := d.SyncProvider.GetRevision(ctx)
+
 	if err != nil && !isUnknownRevision(err) {
 		return err
 	}
 	// Check if something other than the current instance of fluxd changed the sync tag.
 	// This is likely to be caused by another fluxd instance using the same tag.
 	// Having multiple instances fighting for the same tag can lead to fluxd missing manifest changes.
-	if *lastKnownSyncTagRev != "" && oldTagRev != *lastKnownSyncTagRev && !*warnedAboutSyncTagChange {
+	if *lastKnownSyncMarkerRev != "" && oldSyncMarkerRev != *lastKnownSyncMarkerRev && !*warnedAboutSyncMarkerChange {
 		logger.Log("warning",
 			"detected external change in git sync tag; the sync tag should not be shared by fluxd instances")
-		*warnedAboutSyncTagChange = true
+		*warnedAboutSyncMarkerChange = true
 	}
 
-	newTagRev, err := working.HeadRevision(ctx)
+	headRev, err := working.HeadRevision(ctx)
 	if err != nil {
 		return err
 	}
@@ -223,17 +222,16 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	}
 
 	// update notes and emit events for applied commits
-
 	var initialSync bool
 	var commits []git.Commit
 	{
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
-		if oldTagRev != "" {
-			commits, err = d.Repo.CommitsBetween(ctx, oldTagRev, newTagRev, d.GitConfig.Paths...)
+		if oldSyncMarkerRev != "" {
+			commits, err = d.Repo.CommitsBetween(ctx, oldSyncMarkerRev, headRev, d.GitConfig.Paths...)
 		} else {
 			initialSync = true
-			commits, err = d.Repo.CommitsBefore(ctx, newTagRev, d.GitConfig.Paths...)
+			commits, err = d.Repo.CommitsBefore(ctx, headRev, d.GitConfig.Paths...)
 		}
 		cancel()
 		if err != nil {
@@ -245,11 +243,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	changedResources := map[string]resource.Resource{}
 
 	if initialSync {
-		// no synctag, We are syncing everything from scratch
+		// no SyncMarker, We are syncing everything from scratch
 		changedResources = allResources
 	} else {
 		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
-		changedFiles, err := working.ChangedFiles(ctx, oldTagRev)
+		changedFiles, err := working.ChangedFiles(ctx, oldSyncMarkerRev)
 		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
 			// FIXME(michael): this won't be accurate when a file can have more than one resource
@@ -334,7 +332,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 							Error:    n.Result.Error(),
 						},
 						Spec: event.ReleaseSpec{
-							Type:                  event.ReleaseContainersSpecType,
+							Type: event.ReleaseContainersSpecType,
 							ReleaseContainersSpec: &spec,
 						},
 						Cause: n.Spec.Cause,
@@ -424,21 +422,24 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	}
 
 	// Move the tag and push it so we know how far we've gotten.
-	if oldTagRev != newTagRev {
+	if oldSyncMarkerRev != headRev {
 		{
 			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
-			tagAction := git.TagAction{
-				Revision: newTagRev,
+			syncMarkerAction := fluxsync.SyncMarkerAction{
+				Revision: headRev,
 				Message:  "Sync pointer",
 			}
-			err := working.MoveSyncTagAndPush(ctx, tagAction)
+			err := d.SyncProvider.UpdateMarker(ctx, syncMarkerAction)
 			cancel()
 			if err != nil {
 				return err
 			}
-			*lastKnownSyncTagRev = newTagRev
+			*lastKnownSyncMarkerRev = headRev
 		}
-		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
+		logger.Log(
+			"old", oldSyncMarkerRev,
+			"new", headRev,
+		)
 		{
 			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 			err := d.Repo.Refresh(ctx)
@@ -455,12 +456,12 @@ func isUnknownRevision(err error) bool {
 			strings.Contains(err.Error(), "bad revision"))
 }
 
-func makeGitConfigHash(remote git.Remote, conf git.Config) string {
+func makeGitConfigHash(remote git.Remote, gitConfig git.Config) string {
 	urlbit := remote.SafeURL()
 	pathshash := sha256.New()
 	pathshash.Write([]byte(urlbit))
-	pathshash.Write([]byte(conf.Branch))
-	for _, path := range conf.Paths {
+	pathshash.Write([]byte(gitConfig.Branch))
+	for _, path := range gitConfig.Paths {
 		pathshash.Write([]byte(path))
 	}
 	return base64.RawURLEncoding.EncodeToString(pathshash.Sum(nil))

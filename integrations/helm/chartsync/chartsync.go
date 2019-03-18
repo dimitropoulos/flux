@@ -263,12 +263,18 @@ func mirrorName(chartSource *fluxv1beta1.GitChartSource) string {
 	return chartSource.GitURL // TODO(michael) this will not always be the case; e.g., per namespace, per auth
 }
 
-// maybeMirror starts mirroring the repo needed by a HelmRelease,
-// if necessary
+// maybeMirror starts mirroring the repo needed by a HelmRelease, if necessary
 func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	chartSource := fhr.Spec.ChartSource.GitChartSource
 	if chartSource != nil {
-		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.Timeout(chs.config.GitTimeout), git.ReadOnly); !ok {
+		gitRemote := git.Remote{
+			URL: chartSource.GitURL,
+		}
+		options := []git.Option{
+			git.Timeout(chs.config.GitTimeout),
+			git.RepoIsReadOnly(true),
+		}
+		if ok := chs.mirrors.Mirror(mirrorName(chartSource), gitRemote, options...); !ok {
 			chs.logger.Log("info", "started mirroring repo", "repo", chartSource.GitURL)
 		}
 	}

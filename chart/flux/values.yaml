@@ -99,6 +99,10 @@ gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
 
+state:
+  # use `mode: Native` to store flux's state in a native kubernetes resource (instead of a git tag)
+  mode: GitTag
+
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
   url: ""
@@ -106,6 +110,9 @@ git:
   branch: "master"
   # Path within git repo to locate Kubernetes manifests (relative path)
   path: ""
+  # use if you want to Flux to be aware that you intend for Flux to not be able to push changes to git.
+  # Also configure state.mode to `Native` since storing state in a git tag will no longer be possible.
+  readonly: false
   # Username to use as git committer
   user: "Weave Flux"
   # Email to use as git committer
@@ -156,6 +163,7 @@ registry:
   dockercfg:
     enabled: false
     secretName: ""
+
 memcached:
   repository: memcached
   tag: 1.4.25

@@ -13,8 +13,6 @@ import (
 const (
 	defaultInterval = 5 * time.Minute
 	defaultTimeout  = 20 * time.Second
-
-	CheckPushTag = "flux-write-check"
 )
 
 var (
@@ -44,6 +42,7 @@ const (
 	RepoReady    GitRepoStatus = "ready"        // has been written to, so ready to sync
 )
 
+// Repo has all private members in order to promote keeping the state of the repo hidden from the surface
 type Repo struct {
 	// As supplied to constructor
 	origin   Remote
@@ -61,6 +60,7 @@ type Repo struct {
 	C      chan struct{}
 }
 
+// An Option is a configuration function used when instantiating the Repo
 type Option interface {
 	apply(*Repo)
 }
@@ -71,20 +71,35 @@ func (f optionFunc) apply(r *Repo) {
 	f(r)
 }
 
+// PollInterval is the period at which Flux checks for updated images
 type PollInterval time.Duration
 
 func (p PollInterval) apply(r *Repo) {
 	r.interval = time.Duration(p)
 }
 
+// Timeout is the duration of time after which git operations time out
 type Timeout time.Duration
 
 func (t Timeout) apply(r *Repo) {
 	r.timeout = time.Duration(t)
 }
 
-var ReadOnly optionFunc = func(r *Repo) {
-	r.readonly = true
+// RepoIsReadOnly sets the repo to be notated as being readonly
+type RepoIsReadOnly bool
+
+func (r RepoIsReadOnly) apply(repo *Repo) {
+	repo.readonly = bool(r)
+}
+
+// getTempDirectory creates a temporary directory, generally used for where git clones and mirrors.
+// An example of the location of such a directory is `/tmp/flux-working746488278`
+func getTempDirectory() string {
+	dir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
+	if err != nil {
+		panic(err)
+	}
+	return dir
 }
 
 // NewRepo constructs a repo mirror which will sync itself.
@@ -93,7 +108,12 @@ func NewRepo(origin Remote, opts ...Option) *Repo {
 	if origin.URL == "" {
 		status = RepoNoConfig
 	}
+
+	// READONLY-NOTE: this had to be moved here (from where it was in the RepoNew case of Repo.step) because the "first" working directory clone must be available on instantiation of the repo so that the GitTagSyncProvider can access it.
+	dir := getTempDirectory()
+
 	r := &Repo{
+		dir:      dir,
 		origin:   origin,
 		status:   status,
 		interval: defaultInterval,
@@ -235,17 +255,11 @@ func (r *Repo) step(bg context.Context) bool {
 		return false
 
 	case RepoNew:
-		rootdir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
-		if err != nil {
-			panic(err)
-		}
-
 		ctx, cancel := context.WithTimeout(bg, r.timeout)
-		dir, err = mirror(ctx, rootdir, url)
+		err := mirror(ctx, dir, url)
 		cancel()
 		if err == nil {
 			r.mu.Lock()
-			r.dir = dir
 			ctx, cancel := context.WithTimeout(bg, r.timeout)
 			err = r.fetch(ctx)
 			cancel()
@@ -255,13 +269,12 @@ func (r *Repo) step(bg context.Context) bool {
 			r.setUnready(RepoCloned, ErrClonedOnly)
 			return true
 		}
-		dir = ""
-		os.RemoveAll(rootdir)
+		os.RemoveAll(dir)
 		r.setUnready(RepoNew, err)
 		return false
 
 	case RepoCloned:
-		if !r.readonly {
+		if !r.IsReadOnly() {
 			ctx, cancel := context.WithTimeout(bg, r.timeout)
 			err := checkPush(ctx, dir, url)
 			cancel()
@@ -333,6 +346,7 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 	return nil
 }
 
+// Refresh attempts to fetch the repo from upstream
 func (r *Repo) Refresh(ctx context.Context) error {
 	// the lock here and below is difficult to avoid; possibly we
 	// could clone to another repo and pull there, then swap when complete.
@@ -398,4 +412,49 @@ func (r *Repo) workingClone(ctx context.Context, ref string) (string, error) {
 		return "", err
 	}
 	return clone(ctx, working, r.dir, ref)
+}
+
+// IsReadOnly tells you whether or not the repo is in readonly mode
+func (r *Repo) IsReadOnly() bool {
+	return bool(r.readonly)
+}
+
+// Clone returns a local working clone of the sync'ed `*Repo`, using
+// the config given.
+func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
+	upstream := r.Origin()
+	repoDir, err := r.workingClone(ctx, conf.Branch)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := config(ctx, repoDir, conf.UserName, conf.UserEmail); err != nil {
+		os.RemoveAll(repoDir)
+		return nil, err
+	}
+
+	// We'll need the notes ref for pushing it, so make sure we have it.
+	// This assumes we're syncing it (otherwise we'll likely get conflicts).
+	realNotesRef, err := getNotesRef(ctx, repoDir, conf.NotesRef)
+	if err != nil {
+		os.RemoveAll(repoDir)
+		return nil, err
+	}
+
+	r.mu.RLock()
+	if err := fetch(ctx, repoDir, r.dir, realNotesRef+":"+realNotesRef); err != nil {
+		os.RemoveAll(repoDir)
+		r.mu.RUnlock()
+		return nil, err
+	}
+	r.mu.RUnlock()
+
+	checkout := &Checkout{
+		dir:          repoDir,
+		upstream:     upstream,
+		realNotesRef: realNotesRef,
+		config:       conf,
+	}
+
+	return checkout, nil
 }

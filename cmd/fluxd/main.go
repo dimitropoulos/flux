@@ -36,12 +36,14 @@ import (
 	"github.com/weaveworks/flux/image"
 	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/job"
+	nativestate "github.com/weaveworks/flux/nativestate"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/registry/cache"
 	registryMemcache "github.com/weaveworks/flux/registry/cache/memcached"
 	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 var version = "unversioned"
@@ -87,6 +89,7 @@ func main() {
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
+		gitReadonly  = fs.Bool("git-readonly", false, "use to prevnent Flux from pushing changes to git")
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
@@ -124,6 +127,9 @@ func main() {
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
 		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
+
+		// Flux state
+		fluxStateMode = fs.String("flux-state-mode", fluxsync.GitTagStateMode, "method used by flux for storing state")
 
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
@@ -177,6 +183,31 @@ func main() {
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
 
 	// Argument validation
+
+	if *gitReadonly && *fluxStateMode != fluxsync.NativeStateMode {
+		logger.Log("warning", "to use readonly mode, you must use --flux-state-mode="+fluxsync.NativeStateMode+".  instead you configured flux to use --flux-state-mode="+*fluxStateMode+".  overriding to use --flux-state-mode="+fluxsync.NativeStateMode)
+		*fluxStateMode = fluxsync.NativeStateMode
+	}
+
+	// check whether the user is configuring things only used for git access at the same time as configuring Flux to run without touching git
+	gitRelatedFlags := []string{
+		"git-user",
+		"git-email",
+		"git-sync-tag",
+		"git-set-author",
+		"git-ci-skip",
+		"git-ci-skip-message",
+	}
+	var changedGitRelatedFlags []string
+	for _, gitRelatedFlag := range gitRelatedFlags {
+		if fs.Changed(gitRelatedFlag) {
+			changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
+		}
+	}
+	if *gitReadonly && len(changedGitRelatedFlags) > 0 {
+		flags := strings.Join(changedGitRelatedFlags, ", ")
+		logger.Log("warning", "configuring "+flags+" has no effect when either (A) using --git-readonly=true or when (B) using --flux-state-mode="+fluxsync.NativeStateMode)
+	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
@@ -434,11 +465,9 @@ func main() {
 	}
 	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
-	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
 		Paths:       *gitPath,
 		Branch:      *gitBranch,
-		SyncTag:     *gitSyncTag,
 		NotesRef:    *gitNotesRef,
 		UserName:    *gitUser,
 		UserEmail:   *gitEmail,
@@ -447,7 +476,15 @@ func main() {
 		SkipMessage: *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout))
+	gitRemote := git.Remote{
+		URL: *gitURL,
+	}
+	options := []git.Option{
+		git.PollInterval(*gitPollInterval),
+		git.Timeout(*gitTimeout),
+		git.RepoIsReadOnly(*gitReadonly),
+	}
+	repo := git.NewRepo(gitRemote, options...)
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -464,6 +501,8 @@ func main() {
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,
 		"sync-tag", *gitSyncTag,
+		"flux-state-mode", *fluxStateMode,
+		"readonly", *gitReadonly,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
 	)
@@ -471,6 +510,23 @@ func main() {
 	var jobs *job.Queue
 	{
 		jobs = job.NewQueue(shutdown, shutdownWg)
+	}
+
+	var syncProvider fluxsync.SyncProvider
+	switch *fluxStateMode {
+	case fluxsync.NativeStateMode:
+		// reminder: this code assumes that if we are in readonly mode the *fluxStateMode has already been forced to NativeStateMode
+		syncProvider = nativestate.NewNativeSyncProvider()
+
+	case fluxsync.GitTagStateMode:
+		syncProvider = git.NewGitTagSyncProvider(
+			repo.Dir(),
+			*gitSyncTag,
+			*gitURL,
+			*gitSigningKey,
+			*gitUser,
+			*gitEmail,
+		)
 	}
 
 	daemon := &daemon.Daemon{
@@ -482,6 +538,7 @@ func main() {
 		Repo:           repo,
 		GitConfig:      gitConfig,
 		Jobs:           jobs,
+		SyncProvider:   syncProvider,
 		JobStatusCache: &job.StatusCache{Size: 100},
 		Logger:         log.With(logger, "component", "daemon"),
 		LoopVars: &daemon.LoopVars{

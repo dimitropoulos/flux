@@ -22,6 +22,7 @@ import (
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
 	registryMock "github.com/weaveworks/flux/registry/mock"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 const (
@@ -54,7 +55,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 
 	gitConfig := git.Config{
 		Branch:    "master",
-		SyncTag:   gitSyncTag,
 		NotesRef:  gitNotesRef,
 		UserName:  gitUser,
 		UserEmail: gitEmail,
@@ -101,11 +101,11 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		return nil
 	}
 	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
+		logger                      = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncMarkerRev      string
+		warnedAboutSyncMarkerChange bool
 	)
-	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
+	d.doSync(logger, &lastKnownSyncMarkerRev, &warnedAboutSyncMarkerChange)
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -132,7 +132,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	// It creates the tag at HEAD
 	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag); err != nil { // READONLY-NOTE: this needs to be fixed - direct access to Git Tag is no longer permitted, must go through SyncProvider
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
@@ -144,14 +144,14 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	err := d.WithClone(ctx, func(co *git.Checkout) error {
+	err := d.WithClone(ctx, func(working *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		tagAction := git.TagAction{
+		syncMarkerAction := fluxsync.SyncMarkerAction{
 			Revision: "HEAD",
 			Message:  "Sync pointer",
 		}
-		return co.MoveSyncTagAndPush(ctx, tagAction)
+		return d.SyncProvider.UpdateMarker(ctx, syncMarkerAction)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -176,11 +176,11 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		return nil
 	}
 	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
+		logger                      = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncMarkerRev      string
+		warnedAboutSyncMarkerChange bool
 	)
-	if err := d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange); err != nil {
+	if err := d.doSync(logger, &lastKnownSyncMarkerRev, &warnedAboutSyncMarkerChange); err != nil {
 		t.Error(err)
 	}
 
@@ -200,12 +200,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag)
+	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag) // READONLY-NOTE: this needs to be fixed - direct access to Git Tag is no longer permitted, must go through SyncProvider
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag); err != nil {
+	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag); err != nil { // READONLY-NOTE: this needs to be fixed - direct access to Git Tag is no longer permitted, must go through SyncProvider
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -224,11 +224,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		defer cancel()
 
 		var err error
-		tagAction := git.TagAction{
+		syncMarkerAction := fluxsync.SyncMarkerAction{
 			Revision: "HEAD",
 			Message:  "Sync pointer",
 		}
-		err = checkout.MoveSyncTagAndPush(ctx, tagAction)
+		err = d.SyncProvider.UpdateMarker(ctx, syncMarkerAction)
 		if err != nil {
 			return err
 		}
@@ -276,11 +276,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		return nil
 	}
 	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
+		logger                      = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncMarkerRev      string
+		warnedAboutSyncMarkerChange bool
 	)
-	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
+	d.doSync(logger, &lastKnownSyncMarkerRev, &warnedAboutSyncMarkerChange)
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -310,7 +310,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	defer cancel()
 	if err := d.Repo.Refresh(ctx); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag); err != nil { // READONLY-NOTE: this needs to be fixed - direct access to Git Tag is no longer permitted, must go through SyncProvider
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")

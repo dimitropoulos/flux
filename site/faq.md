@@ -21,6 +21,7 @@ menu_order: 60
   * [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
   * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
+  * [Can I run Flux with readonly Git access?](#can-i-run-flux-with-readonly-git-access)
   * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
   * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
@@ -250,6 +251,12 @@ Then create a new secret named `flux-git-deploy`, using your private key as the 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
+
+### Can I run Flux with readonly Git access?
+
+Yes.  You can use the `--git-readonly=true` command line argument.  The Helm chart exposes this as `git.readonly`.
+
+Although this is enough to prevent Flux from writing to your repository, you can also provide a readonly SSH key.  On GitHub this is accomplished by leaving the `Allow write access` box unchecked when you configure the deploy key.
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?
 
