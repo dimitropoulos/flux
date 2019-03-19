@@ -334,7 +334,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 							Error:    n.Result.Error(),
 						},
 						Spec: event.ReleaseSpec{
-							Type:                  event.ReleaseContainersSpecType,
+							Type: event.ReleaseContainersSpecType,
 							ReleaseContainersSpec: &spec,
 						},
 						Cause: n.Spec.Cause,
@@ -455,12 +455,12 @@ func isUnknownRevision(err error) bool {
 			strings.Contains(err.Error(), "bad revision"))
 }
 
-func makeGitConfigHash(remote git.Remote, conf git.Config) string {
+func makeGitConfigHash(remote git.Remote, gitConfig git.Config) string {
 	urlbit := remote.SafeURL()
 	pathshash := sha256.New()
 	pathshash.Write([]byte(urlbit))
-	pathshash.Write([]byte(conf.Branch))
-	for _, path := range conf.Paths {
+	pathshash.Write([]byte(gitConfig.Branch))
+	for _, path := range gitConfig.Paths {
 		pathshash.Write([]byte(path))
 	}
 	return base64.RawURLEncoding.EncodeToString(pathshash.Sum(nil))
