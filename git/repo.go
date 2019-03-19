@@ -42,6 +42,7 @@ const (
 	RepoReady    GitRepoStatus = "ready"        // has been written to, so ready to sync
 )
 
+// Repo has all private members in order to promote keeping the state of the repo hidden from the surface
 type Repo struct {
 	// As supplied to constructor
 	origin   Remote
@@ -59,6 +60,7 @@ type Repo struct {
 	C      chan struct{}
 }
 
+// An Option is a configuration function used when instantiating the Repo
 type Option interface {
 	apply(*Repo)
 }
@@ -69,12 +71,14 @@ func (f optionFunc) apply(r *Repo) {
 	f(r)
 }
 
+// PollInterval is the period at which Flux checks for updated images
 type PollInterval time.Duration
 
 func (p PollInterval) apply(r *Repo) {
 	r.interval = time.Duration(p)
 }
 
+// Timeout is the duration of time after which git operations time out
 type Timeout time.Duration
 
 func (t Timeout) apply(r *Repo) {
@@ -331,6 +335,7 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 	return nil
 }
 
+// Refresh attempts to fetch the repo from upstream
 func (r *Repo) Refresh(ctx context.Context) error {
 	// the lock here and below is difficult to avoid; possibly we
 	// could clone to another repo and pull there, then swap when complete.
