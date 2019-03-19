@@ -35,6 +35,7 @@ type Checkout struct {
 	realNotesRef string // cache the notes ref, since we use it to push as well
 }
 
+// Commit refers to a git commit
 type Commit struct {
 	SigningKey string
 	Revision   string
@@ -169,6 +170,7 @@ func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (b
 	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
 }
 
+// HeadRevision returns the revision of the current git HEAD
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.dir, "HEAD")
 }
