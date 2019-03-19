@@ -22,26 +22,17 @@ type ImageStatus struct {
 // send.
 type ReadOnlyReason string
 
-// ReadOnlyOK signifies that the repo can be written to
-const ReadOnlyOK ReadOnlyReason = ""
-
-// ReadOnlyMissing it's in a cluster but not in the git repo
-const ReadOnlyMissing ReadOnlyReason = "NotInRepo"
-
-// ReadOnlySystem indicates that the repo is in control of kubernetes not by the repo
-const ReadOnlySystem ReadOnlyReason = "System"
-
-// ReadOnlyNoRepo indicates that the user has elected to not supply a git repo
-const ReadOnlyNoRepo ReadOnlyReason = "NoRepo"
-
-// ReadOnlyNotReady indicates that Flux hasn't booted up yet
-const ReadOnlyNotReady ReadOnlyReason = "NotReady"
-
 const (
-	// TestGoDoc is a test for Go Doc
-	TestGoDoc = "asdf"
-
-	SecondGoDocTest = "qwerty" // SecondGoDocTest tests an inline comment
+	// ReadOnlyOK signifies that the repo can be written to.
+	ReadOnlyOK ReadOnlyReason = ""
+	// ReadOnlyMissing it's in a cluster but not in the git repo.
+	ReadOnlyMissing ReadOnlyReason = "NotInRepo"
+	// ReadOnlySystem indicates that kubernetes itself is in control of the Flux controller.
+	ReadOnlySystem ReadOnlyReason = "System"
+	// ReadOnlyNoRepo indicates that the user has elected to not supply a git repo.
+	ReadOnlyNoRepo ReadOnlyReason = "NoRepo"
+	// ReadOnlyNotReady indicates that Flux hasn't booted up yet.
+	ReadOnlyNotReady ReadOnlyReason = "NotReady"
 )
 
 type ControllerStatus struct {
